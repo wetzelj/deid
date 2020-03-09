@@ -24,6 +24,7 @@ SOFTWARE.
 
 from deid.logger import bot
 import dateutil.parser
+from datetime import datetime
 from datetime import timedelta
 import re
 
@@ -96,7 +97,29 @@ def get_timestamp(item_date, item_time=None, jitter_days=None, format=None):
     if item_time is None:
         item_time = ""
 
-    timestamp = dateutil.parser.parse("%s%s" % (item_date, item_time))
+    datetimestring = "%s%s" % (item_date, item_time)
+    datetimelen = len(datetimestring)
+    
+    try:
+        # dateutil.parse does not successfully parse the DT datatype string.
+        # http://dicom.nema.org/dicom/2013/output/chtml/part05/sect_6.2.html            
+        # the following conditions are added to handle these string formats.
+        if datetimelen == 26:
+            # DT datatype with optional timezone offset: YYYYMMDDHHMMSS.FFFFFF&ZZXX
+            timestamp = datetime.strptime(datetimestring, '%Y%m%d%H%M%S.%f%z')
+
+        elif datetimelen == 21:
+            # DT datatype without optional timezone offset: YYYYMMDDHHMMSS.FFFFFF
+            timestamp = datetime.strptime(datetimestring, '%Y%m%d%H%M%S.%f')
+
+        else:
+            timestamp = dateutil.parser.parse(datetimestring)
+
+    except Exception:
+        bot.warning("Timestamp could not be parsed, setting the input timestamp to the current datetime")
+        timestamp = datetime.now()
+
+
     if jitter_days is not None:
         jitter_days = int(float(jitter_days))
         timestamp = timestamp + timedelta(days=jitter_days)
