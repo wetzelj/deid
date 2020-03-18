@@ -52,9 +52,11 @@ class TestDicomFields(unittest.TestCase):
     def test_field_expansion(self):
         print("Test deid.dicom.fields expand_field_expression")
         from deid.dicom.fields import expand_field_expression
+        from deid.dicom.fields import dicom_dir
 
         dicom = get_dicom(self.dataset)
-        contenders = dicom.dir()
+        #contenders = dicom.dir()
+        contenders = dicom_dir(dicom)
 
         print("Testing that field expansion works for basic tags")
         expand_field_expression(
@@ -75,6 +77,54 @@ class TestDicomFields(unittest.TestCase):
         # We should have a tag object in the list now!
         assert isinstance(fields[0], BaseTag)
 
+    
+    def test_skip_list(self):
+        # Demonstrates the bug with deid/dicom/fields.py - ln 222
+        print("Test exclusion of items from skip list")
+        from deid.dicom.fields import dicom_dir
+
+        skip = ['PixelData']
+
+        dicom = get_dicom(self.dataset)
+        contenders = dicom_dir(dicom)        
+        newcontenders = []
+
+        for contender in contenders:
+            if contender in skip:
+                continue
+            else:
+                newcontenders.append(contender)
+
+        with self.assertRaises(ValueError) as exc:
+            pixeldata = newcontenders.index('PixelData')
+        
+        self.assertEqual("'PixelData' is not in list", str(exc.exception))
+    
+    def test_conditional_expansion(self):
+        # Demonstrates the bug with deid/dicom/actions.py - ln 105
+        # When this code is executed, we're performing a specific action
+        #      REMOVE CodeValue
+        # Ultimately, at this point in the code, we're trying to remove 
+        # expanded CodeValues
+        #      FieldA__CodeValue
+        #      FieldB__CodeValue
+
+        print("Test for comparison of items to expanded sequences")
+        from deid.dicom.fields import dicom_dir
+        from deid.dicom.fields import get_fields
+        import re
+
+        dicom = get_dicom(self.dataset)
+        fields = get_fields(dicom, expand_sequences=True)
+        field = 'CodeValue'
+        
+        expanded_regexp = "__%s$" % field
+        
+        expanded_fields = [x for x in fields if re.search(expanded_regexp, x)] 
+        
+        # TODO - Determine what needs to be checked.  Currently throws an exception
+        self.assertTrue(True)
+
 
 def get_dicom(dataset):
     """helper function to load a dicom
@@ -88,3 +138,4 @@ def get_dicom(dataset):
 
 if __name__ == "__main__":
     unittest.main()
+

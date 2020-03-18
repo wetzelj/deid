@@ -219,7 +219,7 @@ def get_fields(dicom, skip=None, expand_sequences=True):
     contenders = dicom_dir(dicom)
 
     for contender in contenders:
-        if contender in skip:
+        if isinstance(contender, str) and contender in skip:
             continue
 
         try:
