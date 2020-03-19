@@ -42,7 +42,7 @@ class TestDicomFields(unittest.TestCase):
     def setUp(self):
         self.pwd = get_installdir()
         self.deid = os.path.abspath("%s/../examples/deid/deid.dicom" % self.pwd)
-        self.dataset = get_dataset("animals")  # includes private tags
+        self.dataset = get_dataset("humans")  # includes private tags
         self.tmpdir = tempfile.mkdtemp()
         print("\n######################START######################")
 
@@ -83,6 +83,24 @@ class TestDicomFields(unittest.TestCase):
         # TODO: need to figure out how to handle reading sequuences for
         # private tags
 
+    def test_sequence_expansion(self):
+        
+        print("Test sequence expansion")
+        from deid.dicom import get_files
+        from pydicom import read_file
+        dicom_files = get_files(self.dataset)
+
+        for f in dicom_files:
+            print("Checking sequence expansion - File %s" % f)
+            dicom = read_file(f)
+            fields = get_fields(dicom, skip=['PixelData'], expand_sequences=True)
+
+            # TODO: design this to be more generic and not tied specifically to the humans dataset.
+            checkfield = 'ProcedureCodeSequence__CodeValue'
+            expected = 'CT0001'
+            actual = fields[checkfield]
+
+            self.assertEqual(expected, actual)
 
 def get_dicom(dataset):
     """helper function to load a dicom
