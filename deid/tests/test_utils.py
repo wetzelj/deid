@@ -63,14 +63,16 @@ class TestUtils(unittest.TestCase):
         """test_write_read_files will test the functions 
            write_file and read_file
         """
+        tempfilelist = []
+
         print("Testing utils.write_file...")
         from deid.utils import write_file
 
         tmpfile = tempfile.mkstemp()[1]
-        os.remove(tmpfile)
+        tempfilelist.append(tmpfile)
         write_file(tmpfile, "blaaahumbug")
         self.assertTrue(os.path.exists(tmpfile))
-
+        
         print("Testing utils.read_file...")
         from deid.utils import read_file
 
@@ -83,19 +85,26 @@ class TestUtils(unittest.TestCase):
         print("Case 1: Providing bad json")
         bad_json = {"Wakkawakkawakka'}": [{True}, "2", 3]}
         tmpfile = tempfile.mkstemp()[1]
-        os.remove(tmpfile)
+        tempfilelist.append(tmpfile)
         with self.assertRaises(TypeError) as cm:
             write_json(bad_json, tmpfile)
 
         print("Case 2: Providing good json")
         good_json = {"Wakkawakkawakka": [True, "2", 3]}
         tmpfile = tempfile.mkstemp()[1]
-        os.remove(tmpfile)
+        tempfilelist.append(tmpfile)
         write_json(good_json, tmpfile)
         with open(tmpfile, "r") as fd:
             content = json.loads(fd.read())
         self.assertTrue(isinstance(content, dict))
         self.assertTrue("Wakkawakkawakka" in content)
+
+        print("Cleaning up temp files...")
+        for f in tempfilelist:
+            try:
+                os.remove(f)
+            except Exception as e:
+                print("WARNING: tempfile could not be removed: %s - %s" % (f, str(e)))
 
     def test_get_installdir(self):
         """get install directory should return the base of where singularity
@@ -114,7 +123,7 @@ class TestUtils(unittest.TestCase):
         from deid.utils import recursive_find
 
         found = 0
-        expected = 7
+        expected = 8
         for file in recursive_find(self.pwd, pattern="*.dcm"):
             found += 1
         print("Found %s files" % (found))
@@ -126,7 +135,7 @@ class TestUtils(unittest.TestCase):
         print("Testing recursive find as lit.")
         from deid.utils import recursive_find
 
-        expected = 7
+        expected = 8
         files = list(recursive_find(self.pwd, pattern="*.dcm"))
         found = len(files)
         print("Found %s files" % (len(files)))

@@ -33,6 +33,6 @@ LICENSE = "LICENSE"
 
 INSTALL_REQUIRES = (
     ("matplotlib", {"min_version": None}),
-    ("pydicom", {"exact_version": "1.2.1"}),
+    ("pydicom", {"exact_version": "1.4.2"}),
     ("python-dateutil", {"min_version": None}),
 )

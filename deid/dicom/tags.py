@@ -23,7 +23,8 @@ SOFTWARE.
 """
 
 from deid.logger import bot
-from pydicom.tag import tag_in_exception
+from pydicom.dataelem import DataElement
+from pydicom.tag import Tag, tag_in_exception
 from pydicom.sequence import Sequence
 from pydicom._dicom_dict import DicomDictionary, RepeatersDictionary
 from pydicom.tag import Tag
@@ -111,10 +112,14 @@ def remove_sequences(dicom):
        ==========
        dicom: the loaded dicom to remove sequences
     """
-    for field in dicom.dir():
-        if isinstance(dicom.get(field), Sequence):
-            dicom = remove_tag(dicom, field)
+
+    dicom.walk(delete_sequence, True)
     return dicom
+
+
+def delete_sequence(dataset, data_element):
+    if data_element.VR == 'SQ':
+        del dataset[data_element.tag]
 
 
 def add_tag(dicom, field, value, quiet=False):
@@ -149,12 +154,18 @@ def change_tag(dicom, field, value):
        value: the value to set, if name is a valid tag
 
     """
-    tag = get_tag(field)
-
-    if field in tag:
-        dicom.add_new(tag[field]["tag"], tag[field]["VR"], value)
-    else:
-        bot.error("%s is not a valid field to add. Skipping." % (field))
+    try:
+        # TODO - Currently this does not validate Dicom types with the type of the element being passed in
+        # for example, if the dicom type is DS (decimal string) and you pass in "TESTVALUE" the add_new will return a
+        # value exception. 
+        if field in dicom:
+            de = dicom.pop(field)        
+        else: 
+            de = DataElement(field, 'LO', value)
+        
+        dicom.add_new(de.tag, de.VR, value)
+    except Exception as e:                
+        bot.error("Exception adding %s. Skipping. (%s)" % (field, str(e)))
 
     return dicom
 
@@ -207,8 +218,7 @@ def remove_tag(dicom, field):
        field: the name of the field to remove
     """
     if field in dicom:
-        tag = dicom.data_element(field).tag
-        del dicom[tag]
+        del dicom[field]
     return dicom
 
 

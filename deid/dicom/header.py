@@ -316,49 +316,17 @@ def replace_identifiers(
         else:
             bot.warning("Private tags were not removed!")
 
-        ds = Dataset()
-        for field in dicom.dir():
-            try:
-                ds.add(dicom.data_element(field))
-            except:
-                pass
-
-        # Copy original data attributes
-        attributes = [
-            "is_little_endian",
-            "is_implicit_VR",
-            "is_decompressed",
-            "read_encoding",
-            "read_implicit_vr",
-            "read_little_endian",
-            "_parent_encoding",
-        ]
-
-        # We aren't including preamble, we will reset to be empty 128 bytes
-        ds.preamble = b"\0" * 128
-
-        for attribute in attributes:
-            if hasattr(dicom, attribute):
-                ds.__setattr__(attribute, dicom.__getattribute__(attribute))
-
-        # Original meta data                     # or default empty dataset
-        file_metas = getattr(dicom, "file_meta", Dataset())
-
-        # Media Storage SOP Instance UID can be identifying
-        if hasattr(file_metas, "MediaStorageSOPInstanceUID"):
-            file_metas.MediaStorageSOPInstanceUID = ""
-
-        # Save meta data
-        ds.file_meta = file_metas
+        ds = dicom
 
         # Save to file?
         if save is True:
             ds = save_dicom(
-                dicom=ds,
+                dicom=dicom,
                 dicom_file=dicom_file,
                 output_folder=output_folder,
                 overwrite=overwrite,
             )
+
         updated_files.append(ds)
 
     return updated_files

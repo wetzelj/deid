@@ -28,6 +28,7 @@ SOFTWARE.
 from deid.logger import bot
 from .tags import remove_sequences
 from .fields import get_fields, expand_field_expression
+from pydicom.tag import Tag
 
 import os
 
@@ -39,20 +40,23 @@ def extract_values_list(dicom, actions):
        to further process the dicom.
     """
     values = set()
-    fields = get_fields(dicom)
     for action in actions:
 
         # Just grab the entire value string for a field, no parsing
         if action["action"] == "FIELD":
             subset = expand_field_expression(
-                field=action["field"], dicom=dicom, contenders=fields
+                field=action["field"], dicom=dicom, contenders=dicom
             )
-            [values.add(dicom.get(field)) for field in subset if field in dicom]
+            for field in subset:
+                tag = Tag(field)
+                element = dicom.get(tag)
+                if tag in dicom:
+                    values.add(str(element.value))
 
         # Split action, can optionally have a "by" and/or minlength parameter
         elif action["action"] == "SPLIT":
             subset = expand_field_expression(
-                field=action["field"], dicom=dicom, contenders=fields
+                field=action["field"], dicom=dicom, contenders=dicom
             )
 
             # Default values for split are length 1 and character empty space
@@ -75,7 +79,10 @@ def extract_values_list(dicom, actions):
                         bot.debug("Splitting value set to %s" % split_by)
 
             for field in subset:
-                new_values = str(dicom.get(field, "")).split(split_by)
+                tag = Tag(field)
+                element = dicom.get(tag)
+                
+                new_values = str(element.value).split(split_by)
                 for new_value in new_values:
                     if len(new_value) >= minlength:
                         values.add(new_value)
@@ -87,7 +94,6 @@ def extract_values_list(dicom, actions):
 
     return list(values)
 
-
 def extract_fields_list(dicom, actions):
     """Given a list of actions for a named group (a list) extract values from
        the dicom based on the list of actions provided. This function
@@ -95,14 +101,11 @@ def extract_fields_list(dicom, actions):
        to further process the dicom.
     """
     subset = []
-    fields = get_fields(dicom)
     for action in actions:
-
         if action["action"] == "FIELD":
             subset += expand_field_expression(
-                field=action["field"], dicom=dicom, contenders=fields
+                field=action["field"], dicom=dicom, contenders=dicom
             )
-
         else:
             bot.warning(
                 "Unrecognized action %s for fields list extraction." % action["action"]

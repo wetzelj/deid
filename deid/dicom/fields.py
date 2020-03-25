@@ -25,6 +25,7 @@ SOFTWARE.
 from deid.logger import bot
 from pydicom.sequence import Sequence
 from pydicom.dataset import RawDataElement, Dataset
+from pydicom.tag import Tag
 import re
 
 
@@ -42,7 +43,11 @@ def extract_item(item, prefix=None, entry=None):
 
     # Skip raw data elements
     if not isinstance(item, RawDataElement):
-        header = item.keyword
+        if item.keyword == '':            
+            tagstring = str(item.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
+            header = str(tagstring)
+        else:
+            header = item.keyword
 
         # If there is no header or field, we can't evaluate
         if header in [None, ""]:
@@ -66,7 +71,7 @@ def extract_sequence(sequence, prefix=None):
        as a flattened list of items. For example, a nested FieldA and FieldB
        would return as:
 
-       {'FieldA__FieldB': '111111'}
+       {'FieldA[x]__FieldB': '111111'}
 
        Parameters
        ==========
@@ -74,16 +79,18 @@ def extract_sequence(sequence, prefix=None):
        prefix: the parent name
     """
     items = {}
+    occurrence = 0
     for item in sequence:
-
+        pre = "{}[{}]".format(prefix, str(occurrence))
         # If it's a Dataset, we need to further unwrap it
         if isinstance(item, Dataset):
             for subitem in item:
-                items.update(extract_item(subitem, prefix=prefix))
+                items.update(extract_item(subitem, prefix=pre))
         else:
             bot.warning(
                 "Unrecognized type %s in extract sequences, skipping." % type(item)
             )
+        occurrence = occurrence + 1
     return items
 
 
@@ -100,7 +107,7 @@ def find_by_values(values, dicom):
     # Create single regular expression to search by
     regexp = "(%s)" % "|".join(values)
     for field, value in contenders.items():
-        if re.search(regexp, value, re.IGNORECASE):
+        if re.search(regexp, str(value), re.IGNORECASE):
             fields.append(field)
 
     return fields
@@ -121,13 +128,20 @@ def expand_field_expression(field, dicom, contenders=None):
 
     # if no contenders provided, use all in dicom headers
     if contenders is None:
-        contenders = dicom.dir()
+        contenders = dicom.iterall()
 
     # Case 1: field is an expander without an argument (e.g., no :)
     if field.lower() in expanders:
 
         if field.lower() == "all":
-            fields = contenders
+            fields = []
+            for x in contenders:
+                if x.keyword == '':            
+                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
+                    tagid = str(tagstring)
+                else:
+                    tagid = x.keyword
+                fields.append(tagid)
         return fields
 
     # Case 2: The field is a specific field OR an expander with argument (A:B)
@@ -142,13 +156,48 @@ def expand_field_expression(field, dicom, contenders=None):
 
     # Expanders here require an expression, and have <expander>:<expression>
     if expander.lower() == "endswith":
-        fields = [x for x in contenders if re.search("(%s)$" % expression, x.lower())]
+        fields = []
+        for x in contenders:
+            if re.search("(%s)$" % expression, x.keyword.lower()) or re.search("(%s)$" % expression, str(x.tag)):
+                if x.keyword == '':            
+                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
+                    tagid = str(tagstring)
+                else:
+                    tagid = x.keyword
+                fields.append(tagid)
+
     elif expander.lower() == "startswith":
-        fields = [x for x in contenders if re.search("^(%s)" % expression, x.lower())]
+        fields = []
+        for x in contenders:
+            if re.search("^(%s)" % expression, x.keyword.lower()) or re.search("^(%s)" % expression, str(x.tag)):
+                if x.keyword == '':            
+                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
+                    tagid = str(tagstring)
+                else:
+                    tagid = x.keyword
+                fields.append(tagid)
+
     elif expander.lower() == "except":
-        fields = [x for x in contenders if not re.search(expression, x.lower())]
+        fields = []
+        for x in contenders:
+            if not re.search(expression, x.keyword.lower()) and not re.search(expression, str(x.tag)):
+                if x.keyword == '':            
+                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
+                    tagid = str(tagstring)
+                else:
+                    tagid = x.keyword
+                fields.append(tagid)
+
     elif expander.lower() == "contains":
-        fields = [x for x in contenders if re.search(expression, x.lower())]
+        fields = []
+        for x in contenders:
+            if (re.search(expression, x.keyword.lower()) or re.search(expression, str(x.tag))) and x.value not in [None, ""] :
+                if x.keyword == '':            
+                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
+                    tagid = str(tagstring)
+                else:
+                    tagid = x.keyword
+                fields.append(tagid)
 
     return fields
 
@@ -169,22 +218,32 @@ def get_fields(dicom, skip=None, expand_sequences=True):
         skip = [skip]
 
     fields = dict()
-    contenders = dicom.dir()
-    for contender in contenders:
-        if contender in skip:
+
+    for elem in dicom.iterall():
+        if elem.keyword in skip or str(elem.tag) in skip:
             continue
 
-        try:
-            value = dicom.get(contender)
+        if elem.keyword == '':            
+            tagstring = str(elem.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
+            key = str(tagstring)
+        else:
+            key = elem.keyword
 
-            # Adding expanded sequences
-            if isinstance(value, Sequence) and expand_sequences is True:
-                fields.update(extract_sequence(value, prefix=contender))
-            else:
-                if value not in [None, ""]:
-                    if isinstance(value, bytes):
-                        value = value.decode("utf-8")
-                    fields[contender] = str(value)
-        except:
-            pass  # need to look into this bug
+        value = elem.value
+        
+        # Adding expanded sequences
+        if isinstance(value, Sequence) and expand_sequences is True:
+            fields.update(extract_sequence(value, key))
+
+        if elem.value not in [None, ""]:
+            if isinstance(elem.value, bytes):
+                try:
+                    value = elem.value.decode("utf-8")
+                except:
+                    # TODO - need to look into this bug.  Some byte values cannot be decoded 
+                    # to utf-8, we willl probably need to check encoding
+                    pass 
+                    
+            fields[key] = elem.value 
+
     return fields
