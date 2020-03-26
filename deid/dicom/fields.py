@@ -23,6 +23,7 @@ SOFTWARE.
 """
 
 from deid.logger import bot
+from deid.utils.tags import get_tag_identifier
 from pydicom.sequence import Sequence
 from pydicom.dataset import RawDataElement, Dataset
 from pydicom.tag import Tag
@@ -43,12 +44,8 @@ def extract_item(item, prefix=None, entry=None):
 
     # Skip raw data elements
     if not isinstance(item, RawDataElement):
-        if item.keyword == '':            
-            tagstring = str(item.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
-            header = str(tagstring)
-        else:
-            header = item.keyword
-
+        header = get_tag_identifier(item)
+        
         # If there is no header or field, we can't evaluate
         if header in [None, ""]:
             return entry
@@ -136,12 +133,7 @@ def expand_field_expression(field, dicom, contenders=None):
         if field.lower() == "all":
             fields = []
             for x in contenders:
-                if x.keyword == '':            
-                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
-                    tagid = str(tagstring)
-                else:
-                    tagid = x.keyword
-                fields.append(tagid)
+                fields.append(get_tag_identifier(x))
         return fields
 
     # Case 2: The field is a specific field OR an expander with argument (A:B)
@@ -159,45 +151,25 @@ def expand_field_expression(field, dicom, contenders=None):
         fields = []
         for x in contenders:
             if re.search("(%s)$" % expression, x.keyword.lower()) or re.search("(%s)$" % expression, str(x.tag)):
-                if x.keyword == '':            
-                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
-                    tagid = str(tagstring)
-                else:
-                    tagid = x.keyword
-                fields.append(tagid)
+                fields.append(get_tag_identifier(x))
 
     elif expander.lower() == "startswith":
         fields = []
         for x in contenders:
             if re.search("^(%s)" % expression, x.keyword.lower()) or re.search("^(%s)" % expression, str(x.tag)):
-                if x.keyword == '':            
-                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
-                    tagid = str(tagstring)
-                else:
-                    tagid = x.keyword
-                fields.append(tagid)
+                fields.append(get_tag_identifier(x))
 
     elif expander.lower() == "except":
         fields = []
         for x in contenders:
             if not re.search(expression, x.keyword.lower()) and not re.search(expression, str(x.tag)):
-                if x.keyword == '':            
-                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
-                    tagid = str(tagstring)
-                else:
-                    tagid = x.keyword
-                fields.append(tagid)
+                fields.append(get_tag_identifier(x))
 
     elif expander.lower() == "contains":
         fields = []
         for x in contenders:
             if (re.search(expression, x.keyword.lower()) or re.search(expression, str(x.tag))) and x.value not in [None, ""] :
-                if x.keyword == '':            
-                    tagstring = str(x.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
-                    tagid = str(tagstring)
-                else:
-                    tagid = x.keyword
-                fields.append(tagid)
+                fields.append(get_tag_identifier(x))
 
     return fields
 
@@ -223,12 +195,7 @@ def get_fields(dicom, skip=None, expand_sequences=True):
         if elem.keyword in skip or str(elem.tag) in skip:
             continue
 
-        if elem.keyword == '':            
-            tagstring = str(elem.tag).replace('(', '').replace(')', '').replace(',', '').replace(' ', '')
-            key = str(tagstring)
-        else:
-            key = elem.keyword
-
+        key = get_tag_identifier(elem)
         value = elem.value
         
         # Adding expanded sequences

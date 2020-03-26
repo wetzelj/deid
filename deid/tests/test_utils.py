@@ -141,6 +141,20 @@ class TestUtils(unittest.TestCase):
         print("Found %s files" % (len(files)))
         self.assertTrue(found == expected)
 
+    def test_get_tag_key(self):
+        """test_get_tag_key should detect 7 dicoms
+        """
+        print("Testing get_tag_key.")
+        from deid.utils.tags import get_tag_key
+        expected = '00090010'
+        actual = get_tag_key('(0009, 0010)')
+        self.assertTrue(expected, actual)
+
+        with self.assertRaises(ValueError):
+            actual = get_tag_key('(ABdd, ssss)')
+        with self.assertRaises(ValueError):
+            actual = get_tag_key('(9, 10)')
+
 
 if __name__ == "__main__":
     unittest.main()
