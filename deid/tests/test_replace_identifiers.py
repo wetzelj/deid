@@ -36,6 +36,8 @@ import os
 from deid.utils import get_installdir
 from deid.data import get_dataset
 
+from collections import OrderedDict
+
 global generate_uid
 
 
@@ -358,40 +360,146 @@ class TestDicomUtils(unittest.TestCase):
             check3 = result[0]['DataCollectionDiameter'].value
 
     def test_fieldset_public_only(self):
-        '''
+        '''  RECIPE        
         %fields field_set1
         FIELD Manufacturer
         FIELD contains:Time
+        %header
+        REMOVE fields:field_set1
         '''
-        #REMOVE fields:field_set1
-        self.assertTrue(True)
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test public tag fieldset")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'fields:field_set1'}]
+        fields = OrderedDict()
+        fields['field_set1'] = [{'field': 'Manufacturer', 'action': 'FIELD'},
+                                {'field': 'contains:Collimation', 'action': 'FIELD'}]
+        recipe = create_recipe(actions, fields)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual(157, len(result[0]))
+        with self.assertRaises(KeyError):
+            check1 = result[0]['Manufacturer'].value
+        with self.assertRaises(KeyError):
+            check2 = result[0]['TotalCollimationWidth'].value
+        with self.assertRaises(KeyError):
+            check3 = result[0]['SingleCollimationWidth'].value
 
     def test_valueset_public_only(self):
         '''
         %values value_set1
         FIELD contains:Manufacturer
         SPLIT contains:Physician by="^";minlength=3
+        %header REMOVE values:value_set1
         '''
-        #REMOVE values:value_set1
-        self.assertTrue(True)
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test public tag valueset")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'values:value_set1'}]
+        values = OrderedDict()
+        values['value_set1'] = [{'field': 'contains:Manufacturer', 'action': 'FIELD'},
+                                {'value': 'by="^";minlength=3', 'field': 'contains:Physician', 'action': 'SPLIT'}]
+        recipe = create_recipe(actions, values=values)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual(146, len(result[0]))
+        with self.assertRaises(KeyError):
+            check1 = result[0]['00090010'].value
+        with self.assertRaises(KeyError):
+            check2 = result[0]['Manufacturer'].value
+        with self.assertRaises(KeyError):
+            check3 = result[0]['PhysiciansOfRecord'].value
 
     def test_fieldset_public_private(self):
         '''
         %fields field_set2_private
         FIELD 00090010
         FIELD PatientID
+        %header
+        REMOVE fields:field_set2_private
         '''
-        #REMOVE fields:field_set2_private
-        self.assertTrue(True)
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test private tag fieldset")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'fields:field_set2_private'}]
+        fields = OrderedDict()
+        fields['field_set2_private'] = [{'field': '00090010', 'action': 'FIELD'},
+                                {'field': 'PatientID', 'action': 'FIELD'}]
+        recipe = create_recipe(actions, fields)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual(158, len(result[0]))
+        with self.assertRaises(KeyError):
+            check1 = result[0]['00090010'].value
+        with self.assertRaises(KeyError):
+            check2 = result[0]['PatientID'].value
 
     def test_valueset_private(self):
         '''
         %values value_set2_private
         FIELD 00311020
         SPLIT 00090010 by=" ";minlength=4
+        %header
+        REMOVE values:value_set2_private
         '''
-        #REMOVE values:value_set2_private
-        self.assertTrue(True)
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test private tag valueset")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'values:value_set2_private'}]
+        values = OrderedDict()
+        values['value_set2_private'] = [{'field': '00311020', 'action': 'FIELD'},
+                                {'value': 'by=" ";minlength=4', 'field': '00090010', 'action': 'SPLIT'}]
+        recipe = create_recipe(actions, values=values)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        # TODO - I think this fails because of the _ in (0008, 0102)
+        self.assertEqual(148, len(result[0]))
+        with self.assertRaises(KeyError):
+            check1 = result[0]['OtherPatientIDs'].value
+        with self.assertRaises(KeyError):
+            check2 = result[0]['Manufacturer'].value
+        with self.assertRaises(KeyError):
+            check3 = result[0]['00190010'].value
 
     def test_tag_expanders_taggroup(self):
         #REMOVE contains:0009
@@ -413,7 +521,7 @@ class TestDicomUtils(unittest.TestCase):
 
     # MORE TESTS NEED TO BE WRITTEN TO TEST SEQUENCES
 
-def create_recipe(actions):
+def create_recipe(actions, fields=None, values=None):
     """helper method to create a recipe file 
     """
     from deid.config import DeidRecipe
@@ -421,6 +529,12 @@ def create_recipe(actions):
     recipe = DeidRecipe()
     recipe.deid['header'].clear()
     recipe.deid['header'] = actions
+
+    if fields is not None:
+        recipe.deid['fields'] = fields
+
+    if values is not None: 
+        recipe.deid['values'] = values
 
     return recipe
 
