@@ -88,6 +88,10 @@ class TestDicomUtils(unittest.TestCase):
         self.assertEqual(found, expected)
 
     def test_add_private_constant(self):
+        """ RECIPE RULE
+        ADD 11112221 SIMPSON
+        """
+
         from deid.dicom import get_identifiers
         from deid.dicom import replace_identifiers
         print("Test add private tag constant value")
@@ -109,6 +113,10 @@ class TestDicomUtils(unittest.TestCase):
         self.assertEqual('SIMPSON', result[0]['11112221'].value)
 
     def test_add_public_constant(self):
+        """ RECIPE RULE
+        ADD PatientIdentityRemoved Yeppers!
+        """
+
         from deid.dicom import get_identifiers
         from deid.dicom import replace_identifiers
         print("Test add public tag constant value")
@@ -130,6 +138,11 @@ class TestDicomUtils(unittest.TestCase):
         self.assertEqual('Yeppers!', result[0].PatientIdentityRemoved)
 
     def test_replace_with_constant(self):
+        """ RECIPE RULE
+        REPLACE AccessionNumber 987654321
+        REPLACE 00190010 NEWVALUE!
+        """
+
         from deid.dicom import get_identifiers
         from deid.dicom import replace_identifiers
         print("Test replace tags with constant values")
@@ -138,7 +151,7 @@ class TestDicomUtils(unittest.TestCase):
         newfield1 = 'AccessionNumber'
         newvalue1 = '987654321'
         newfield2 = '00190010'
-        newvalue2 = 'NEW VALUE!'
+        newvalue2 = 'NEWVALUE!'
 
         actions = [{'action': 'REPLACE',
                 'field' : newfield1,
@@ -162,6 +175,11 @@ class TestDicomUtils(unittest.TestCase):
         self.assertEqual(newvalue2, result[0][newfield2].value)
 
     def test_remove(self):
+        """ RECIPE RULE
+        REMOVE InstitutionName
+        REMOVE 00190010
+        """
+
         from deid.dicom import get_identifiers
         from deid.dicom import replace_identifiers
         print("Test remove of public and private tags")
@@ -192,29 +210,152 @@ class TestDicomUtils(unittest.TestCase):
             check2 = result[0][field2].value
 
     def test_add_tag_variable(self):
-        # Add to public and private tag
-        self.assertTrue(True)
-    
+        """ RECIPE RULE
+        ADD 11112221 var:myVar
+        ADD PatientIdentityRemoved var:myVar
+        """
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test add tag constant value from variable")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'ADD',
+                'field' : '11112221',
+                'value' : 'var:myVar'},
+                {'action': 'ADD',
+                'field' : 'PatientIdentityRemoved',
+                'value' : 'var:myVar'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+        ids[dicom_file]['myVar'] = 'SIMPSON'
+        
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual('SIMPSON', result[0]['11112221'].value)
+        self.assertEqual('SIMPSON', result[0]['PatientIdentityRemoved'].value)
+
     def test_jitter_date(self):
         # DICOM datatype DA
-        self.assertTrue(True)
+        """ RECIPE RULE
+        JITTER StudyDate 1
+        """
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test date jitter")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'JITTER',
+                'field' : 'StudyDate',
+                'value' : '1'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+                
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual('20230102', result[0]['StudyDate'].value)
 
     def test_jitter_timestamp(self):
         # DICOM datatype DT
-        self.assertTrue(True)
+        """ RECIPE RULE
+        JITTER AcquisitionDateTime 1
+        """
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test timestamp jitter")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'JITTER',
+                'field' : 'AcquisitionDateTime',
+                'value' : '1'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+                
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual('20230102011721.621000', result[0]['AcquisitionDateTime'].value)
 
     def test_expanders(self):
-        # Include contains, endswith, startswith
+        ''' RECIPE RULES
+        REMOVE contains:Collimation
+        REMOVE endswith:Diameter
+        REMOVE startswith:Exposure
         '''
-        #REMOVE contains:Collimation
-        #REMOVE endswith:Diameter
-        #REMOVE startswith:Study
-        '''
-        self.assertTrue(True)
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test contains, endswith, and startswith expanders")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'contains:Collimation'},
+                {'action': 'REMOVE',
+                'field' : 'endswith:Diameter'},
+                {'action': 'REMOVE',
+                'field' : 'startswith:Exposure'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual(153, len(result[0]))
+        with self.assertRaises(KeyError):
+            check1 = result[0]['ExposureTime'].value
+        with self.assertRaises(KeyError):
+            check2 = result[0]['TotalCollimationWidth'].value
+        with self.assertRaises(KeyError):
+            check3 = result[0]['DataCollectionDiameter'].value
 
     def test_expander_except(self):
-        #REMOVE except:Manufacturer
-        self.assertTrue(True)
+        ''' RECIPE RULE
+        REMOVE except:Manufacturer
+        '''
+
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test except expander")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'except:Manufacturer'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual(2, len(result[0]))
+        self.assertEqual('SIEMENS', result[0]['Manufacturer'].value)
+        with self.assertRaises(KeyError):
+            check1 = result[0]['ExposureTime'].value
+        with self.assertRaises(KeyError):
+            check2 = result[0]['TotalCollimationWidth'].value
+        with self.assertRaises(KeyError):
+            check3 = result[0]['DataCollectionDiameter'].value
 
     def test_fieldset_public_only(self):
         '''

@@ -33,6 +33,7 @@ from deid.utils import get_timestamp, parse_value
 
 from pydicom.dataset import Dataset
 from pydicom.sequence import Sequence
+from pydicom.tag import Tag
 
 import re
 
@@ -294,29 +295,30 @@ def jitter_timestamp(dicom, field, value):
     if not isinstance(value, int):
         value = int(value)
 
-    original = dicom.get(field, None)
+    tag = Tag(field)
+    original = dicom.get(tag, None)
 
     if original is not None:
-        dcmvr = dicom.data_element(field).VR
+        dcmvr = original.VR
 
         # DICOM Value Representation can be either DA (Date) DT (Timestamp),
         # or something else, which is not supported.
 
         if dcmvr == "DA":
             # NEMA-compliant format for DICOM date is YYYYMMDD
-            new_value = get_timestamp(original, jitter_days=value, format="%Y%m%d")
+            new_value = get_timestamp(original.value, jitter_days=value, format="%Y%m%d")
 
         elif dcmvr == "DT":
             # NEMA-compliant format for DICOM timestamp is
             # YYYYMMDDHHMMSS.FFFFFF&ZZXX
             new_value = get_timestamp(
-                original, jitter_days=value, format="%Y%m%d%H%M%S.%f%z"
+                original.value, jitter_days=value, format="%Y%m%d%H%M%S.%f%z"
             )
         else:
             # Do nothing and issue a warning.
             new_value = None
             bot.warning("JITTER not supported for %s with VR=%s" % (field, dcmvr))
-        if new_value is not None and new_value != original:
+        if new_value is not None and new_value != original.value:
             # Only update if there's something to update AND there's been change
             dicom = update_tag(dicom, field=field, value=new_value)
     return dicom
