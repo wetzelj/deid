@@ -208,7 +208,7 @@ def get_fields(dicom, skip=None, expand_sequences=True):
                     value = elem.value.decode("utf-8")
                 except:
                     # TODO - need to look into this bug.  Some byte values cannot be decoded 
-                    # to utf-8, we willl probably need to check encoding
+                    # to utf-8, we will probably need to check encoding
                     pass 
                     
             fields[key] = elem.value 

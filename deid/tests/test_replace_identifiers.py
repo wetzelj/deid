@@ -502,22 +502,124 @@ class TestDicomUtils(unittest.TestCase):
             check3 = result[0]['00190010'].value
 
     def test_tag_expanders_taggroup(self):
-        #REMOVE contains:0009
-        self.assertTrue(True)
+        # This tests targets the group portion of a tag identifier - 0009 in (0009, 0001)
+        '''
+        %header
+        REMOVE contains:0009
+        '''
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test expanding tag by tag number part (matches group numbers only)")
+        dicom_file = get_file(self.dataset)
 
+        actions = [{'action': 'REMOVE',
+                'field' : 'contains:0009'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        with self.assertRaises(KeyError):
+            check1 = result[0]['00090010'].value
+        
     def test_tag_expanders_midtag(self):
-        #mid tag (0028,0010) - this tag should not be included
-        #REMOVE contains:8001
-        self.assertTrue(True)
+        # This tests targets a tag number, but would only match mid-string in the sample - (0028, 0010)
+        # this test should pass when nothing is removed by the command. 
+        '''
+        %header
+        REMOVE contains:8001
+        '''
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test expanding tag by tag number part (matches tag numbers mid string - invalid scenario)")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'contains:8001'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual(456,  result[0]['00280010'].value)
 
     def test_tag_expanders_tagelement(self):
         #includes public and private, groups and element numbers
-        #REMOVE contains:0010
-        self.assertTrue(True)
+        '''
+        %header
+        REMOVE contains:0010
+        '''
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test expanding tag by tag number part (matches groups and element numbers)")
+        dicom_file = get_file(self.dataset)
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'contains:0010'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual(135, len(result[0]))
+        with self.assertRaises(KeyError):
+            check1 = result[0]['00090010'].value
+        with self.assertRaises(KeyError):
+            check2= result[0]['PatientID'].value
 
     def test_remove_all_func(self):
-        #REMOVE ALL func:sometimes_returntrue_sometimes_returnfalse
-        self.assertTrue
+        '''
+        %header
+        REMOVE ALL func:contains_hibbard
+        '''
+        from deid.dicom import get_identifiers
+        from deid.dicom import replace_identifiers
+        print("Test tag removal by")
+        dicom_file = get_file(self.dataset)
+
+        def contains_hibbard(dicom, value, field):
+            from pydicom.tag import Tag
+
+            tag = Tag(field)
+            currentvalue = str(dicom.get(tag).value).lower()       
+            if 'hibbard' in currentvalue:
+                return True
+            return False
+
+        actions = [{'action': 'REMOVE',
+                'field' : 'ALL',
+                'value' : 'func:contains_hibbard'}]
+        recipe = create_recipe(actions)
+        ids = get_identifiers(dicom_file)
+        ids[dicom_file]['contains_hibbard'] = contains_hibbard
+        result = replace_identifiers(dicom_files=dicom_file,
+                            ids=ids,
+                            deid=recipe, 
+                            save=False,
+                            remove_private=False,
+                            strip_sequences=False)
+        self.assertEqual(1, len(result))
+        self.assertEqual(156, len(result[0]))
+        with self.assertRaises(KeyError):
+            check1 = result[0]['ReferringPhysicianName'].value
+        with self.assertRaises(KeyError):
+            check2= result[0]['PhysiciansOfRecord'].value
+        with self.assertRaises(KeyError):
+            check3= result[0]['RequestingPhysician'].value
+        with self.assertRaises(KeyError):
+            check4= result[0]['00331019'].value
 
     # MORE TESTS NEED TO BE WRITTEN TO TEST SEQUENCES
 
