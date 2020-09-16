@@ -163,11 +163,11 @@ class DicomCleaner:
             # Instead of writing directly to data, create a mask
             # For 4D, (frames, X, Y, channel)
             if len(self.original.shape) == 4:
-                mask = numpy.zeros(self.original.shape[1:3], dtype=numpy.uint8)
+                mask = numpy.ones(self.original.shape[1:3], dtype=numpy.uint8)
 
             # For 3D, (X, Y, channel)
             else:
-                mask = numpy.zeros(self.original.shape[0:2], dtype=numpy.uint8)
+                mask = numpy.ones(self.original.shape[0:2], dtype=numpy.uint8)
 
             for coordinate_value, coordinate in coordinates:
                 minr, minc, maxr, maxc = coordinate
@@ -197,8 +197,8 @@ class DicomCleaner:
                 final_mask = numpy.tile(mask, (self.original.shape[0], 1, 1))
                 self.cleaned = final_mask * self.original
             elif len(self.original.shape) == 2:
-                self.cleaned = self.original
-                self.cleaned[minc:maxc, minr:maxr] = 0  # should fill with black
+                self.cleaned = mask * self.original
+
             else:
                 bot.warning(
                     "Pixel array dimension %s is not recognized."
