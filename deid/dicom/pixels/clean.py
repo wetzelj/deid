@@ -150,7 +150,7 @@ class DicomCleaner:
 
                 # Keepcoordinates first to be conservative
                 for index in ["keepcoordinates", "coordinates"]:
-                    if item[index]:
+                    if item.get(index):
                         for coordinate_set in item[index]:
                             # Coordinates expected to be list separated by commas
                             new_coordinates = [
@@ -196,11 +196,13 @@ class DicomCleaner:
                 # numpy.tile converts (X, Y) -> (frames, X, Y)
                 final_mask = numpy.tile(mask, (self.original.shape[0], 1, 1))
                 self.cleaned = final_mask * self.original
-
+            elif len(self.original.shape) == 2:
+                self.cleaned = self.original
+                self.cleaned[minc:maxc, minr:maxr] = 0  # should fill with black
             else:
                 bot.warning(
                     "Pixel array dimension %s is not recognized."
-                    % (self.original.shape)
+                    % (str(self.original.shape))
                 )
 
     def get_figure(self, show=False, image_type="cleaned", title=None):
