@@ -15,6 +15,7 @@ Referenced versions in headers are tagged on Github, in parentheses are for pypi
 
 ## [vxx](https://github.com/pydicom/deid/tree/master) (master)
 
+- CLEVELAND CLINIC ONLY - change to exclude the pixeldata field when performing header values actions (0.3.1.01) - CLEVELAND CLINIC ONLY
 - pre-commit for linting and formatting (0.3.1)
 - Add `ctpcoordinates` and `ctpkeepcoordinates` to handle different formats (0.3.0)
   - Minimum Python required is 3.7, numpy 1.20
