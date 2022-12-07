@@ -14,6 +14,7 @@ and **Merged pull requests**. Critical items to know are:
 Referenced versions in headers are tagged on Github, in parentheses are for pypi.
 
 ## [vxx](https://github.com/pydicom/deid/tree/master) (master)
+- CLEVELAND CLINIC ONLY - change to exclude the pixeldata field when performing header values actions (0.3.21.01) - CLEVELAND CLINIC ONLY
 - Circular import error [#247](https://github.com/pydicom/deid/issues/247) (0.3.21)
 - Expand BLANK Action to additional VRs [#241](https://github.com/pydicom/deid/issues/241) (0.3.2)
   - Correct issues with REPLACE action on numeric VRs [#244](https://github.com/pydicom/deid/issues/244)
