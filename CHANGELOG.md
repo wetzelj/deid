@@ -14,6 +14,7 @@ and **Merged pull requests**. Critical items to know are:
 Referenced versions in headers are tagged on Github, in parentheses are for pypi.
 
 ## [vxx](https://github.com/pydicom/deid/tree/master) (master)
+- CLEVELAND CLINIC ONLY - change to exclude the pixeldata field when performing header values actions (0.3.22.01) - CLEVELAND CLINIC ONLY
 - Allow filter tag names to be 0x-prefix hex numbers so private tags can be referenced in recipes [#253](https://github.com/pydicom/deid/issues/253) (0.3.22)
 - Fix incorrect coordinate definition for GE CT [#249](https://github.com/pydicom/deid/issues/249)
 - Circular import error [#247](https://github.com/pydicom/deid/issues/247) (0.3.21)
