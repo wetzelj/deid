@@ -342,7 +342,7 @@ class DicomParser:
             # Create single regular expression to search by
             regexp = "(%s)" % "|".join(values)
             for uid, field in self.fields.items():
-                if field.value_contains(regexp):
+                if field.element.name != "Pixel Data" and field.value_contains(regexp):
                     fields[uid] = field
         else:
             bot.warning("Empty values list encountered.  No fields will be identified.")
